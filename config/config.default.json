@@ -1,0 +1,24 @@
+{
+  "typesense": {
+    "nodes": [{
+      "host": "localhost",
+      "port": "8108",
+      "protocol": "http"
+    }],
+    "apiKey": "xyz",
+    "connectionTimeoutSeconds": 15
+  },
+  "schemeRegistry": {
+    "provider": "ConceptApi",
+    "uri": "http://coli-conc.gbv.de/registry/bartoc",
+    "status": "https://bartoc.org/api/status",
+    "schemes": "https://bartoc.org/api/voc?partOf=http%3A%2F%2Fbartoc.org%2Fen%2Fnode%2F18926"
+  },
+  "mappingRegistries": [
+    {
+      "provider": "MappingsApi",
+      "uri": "http://coli-conc.gbv.de/registry/coli-conc-mappings",
+      "status": "https://coli-conc.gbv.de/api/status"
+    }
+  ]
+}

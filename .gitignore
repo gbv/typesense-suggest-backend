@@ -1,3 +1,9 @@
+# Config file
+config/config.json
+
+# Cached data files
+*.ndjson
+
 # Logs
 logs
 *.log
