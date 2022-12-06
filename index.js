@@ -2,7 +2,7 @@ import config from "./config/index.js"
 import jskos from "jskos-tools"
 import { cdk } from "cocoda-sdk"
 import fs from "fs/promises"
-import { downloadFile, waitForStream } from "./lib/utils.js"
+import { downloadFile } from "./lib/utils.js"
 import anystream from "json-anystream"
 
 const bartocRegistry = cdk.initializeRegistry(config.schemeRegistry)
@@ -58,10 +58,9 @@ async function main() {
   console.log(`Loading concept data from ${conceptsFile} into memory...`)
   const conceptData = {}
   const conceptDataStream = await anystream.make(conceptsFile)
-  conceptDataStream.on("data", object => {
-    conceptData[object.uri] = object
-  })
-  await waitForStream(conceptDataStream)
+  for await (const concept of conceptDataStream) {
+    conceptData[concept.uri] = concept
+  }
   console.log(`... concept data loaded (${Object.keys(conceptData).length} concepts).`)
 
   // 4. Attaching mappings to concept data
@@ -70,7 +69,7 @@ async function main() {
     console.log(`Loading mappings data from ${mappingFile} into the concept data (${index})...`)
     const mappingDataStream = await anystream.make(mappingFile)
     let count = 0
-    mappingDataStream.on("data", mapping => {
+    for await (const mapping of mappingDataStream) {
       count += 1
       const side = jskos.compare(mapping.fromScheme, scheme) ? "from" : "to"
       const otherSide = side === "from" ? "to" : "from"
@@ -83,8 +82,7 @@ async function main() {
       concepts.forEach(concept => {
         concept.mappings = (concept.mappings ?? []).concat(otherConcepts)
       })
-    })
-    await waitForStream(mappingDataStream)
+    }
     console.log(`... mapping data loaded (${count} mappings, ${index}).`)
   }))
 
