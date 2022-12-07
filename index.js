@@ -11,6 +11,61 @@ const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializ
 // TODO
 const uri = "http://bartoc.org/en/node/18785"
 
+import typesense from "./lib/typesense.js"
+
+function isCombinedConcept(concept) {
+  return (concept?.type || []).includes("http://rdf-vocabulary.ddialliance.org/xkos#CombinedConcept")
+}
+
+/**
+ * Maps a concept to a document for importing it into Typesense. The document will have the following structure:
+ *
+ * {
+ *    id: string (URI),
+ *    concept: unmodified JSKOS concept data,
+ *    identifier: list of strings (URI, identifier, notations),
+ *    prefLabel: list of strings (all preferred labels); empty for combined concepts,
+ *    altLabel: list of strings (all alternative labels); empty for combined concepts,
+ *    mappingLabels: list of strings (labels of mappings for this concept); empty for combined concepts,
+ *    notes: list of strings (notes = scopeNote and editorialNote); empty for combined concepts,
+ * }
+ */
+function mapConcept(concept) {
+  if (!concept || !concept.uri || !concept.prefLabel) {
+    return null
+  }
+  const document = {
+    id: concept.uri,
+    concept,
+    identifier: [concept.uri].concat(concept.identifier || [], concept.notation),
+    prefLabel: [],
+    altLabel: [],
+    mappingLabelsExactClose: [],
+    mappingLabelsNarrowBroad: [],
+    mappingLabelsOther: [],
+    notes: [],
+  }
+  if (!isCombinedConcept(concept)) {
+    document.prefLabel = Object.values(concept.prefLabel)
+    document.altLabel = [].concat(...Object.values(concept.altLabel || {}))
+    document.mappingLabelsExactClose = concept._mappings.exactClose.map(mapping => mapping.prefLabel?.de).filter(Boolean)
+    document.mappingLabelsNarrowBroad = concept._mappings.narrowBroad.map(mapping => mapping.prefLabel?.de).filter(Boolean)
+    document.mappingLabelsOther = concept._mappings.other.map(mapping => mapping.prefLabel?.de).filter(Boolean)
+    document.notes = [].concat(...Object.values(concept.scopeNote || {}), ...Object.values(concept.editorialNote || {}))
+  }
+  return document
+}
+
+const mappingTypeMap = {
+  "http://www.w3.org/2004/02/skos/core#mappingRelation": "other",
+  "http://www.w3.org/2004/02/skos/core#closeMatch": "exactClose",
+  "http://www.w3.org/2004/02/skos/core#exactMatch": "exactClose",
+  "http://www.w3.org/2004/02/skos/core#broadMatch": "narrowBroad",
+  "http://www.w3.org/2004/02/skos/core#narrowMatch": "narrowBroad",
+  "http://www.w3.org/2004/02/skos/core#relatedMatch": "other",
+
+}
+
 // SQLite database used to cache concept data loaded for mappings
 import Database from "better-sqlite3"
 
@@ -65,6 +120,11 @@ async function main() {
   const conceptDataStream = await anystream.make(conceptsFile)
   for await (const concept of conceptDataStream) {
     conceptData[concept.uri] = concept
+    concept._mappings = {
+      exactClose: [],
+      narrowBroad: [],
+      other: [],
+    }
   }
   console.log(`... concept data loaded (${Object.keys(conceptData).length} concepts).`)
 
@@ -86,7 +146,7 @@ async function main() {
       // Attach otherConcepts to all concepts
       concepts.forEach(concept => {
         // We're attaching the concepts in the `mappings` field, but that's okay. 😅
-        concept._mappings = (concept._mappings ?? []).concat(otherConcepts)
+        concept._mappings[mappingTypeMap[mapping.type[0]]] = concept._mappings[mappingTypeMap[mapping.type[0]]].concat(otherConcepts)
       })
     }
     console.log(`... mapping data loaded (${count} mappings, ${index}).`)
@@ -105,7 +165,7 @@ async function main() {
   let cachedCount = 0, failedCount = 0, loadedCount = 0
   console.log("Loading concept data for mappings...")
   for (const concept of Object.values(conceptData)) {
-    for (const mappingConcept of concept._mappings || []) {
+    for (const mappingConcept of [].concat(concept._mappings.exactClose, concept._mappings.narrowBroad, concept._mappings.other)) {
       const inScheme = mappingConcept.inScheme[0]
       const scheme = schemes.find(s => jskos.compare(s, inScheme))
       if (!scheme?._registry?.getConcepts) {
@@ -138,4 +198,23 @@ async function main() {
   console.log(`... loaded ${cachedCount} concepts from cache.`)
   console.log(`... failed to load ${failedCount} concepts.`)
   incompatibleSchemes.length > 0 && console.log(`... ${incompatibleSchemes.length} incompatible vocabularies: ${incompatibleSchemes}`)
+
+  // 7. Prepare Typesense backend
+  const collection = `${notation}-suggestions`
+  if (!(await typesense.exists(collection))) {
+    // Create collection
+    await typesense.create(collection)
+  }
+
+  // 8. Import into Typesense
+  console.log("Importing data into Typesense backend...")
+  let count = 0
+  const chunkSize = 5000
+  for (let i = 0; i < Object.values(conceptData).length; i += chunkSize) {
+    const chunk = Object.values(conceptData).slice(i, i + chunkSize).map(mapConcept).filter(Boolean)
+    await typesense.import(collection, chunk)
+    count += chunk.length
+    console.log(`... ${count} documents imported.`)
+  }
+  console.log("... import into Typesense complete.")
 }
