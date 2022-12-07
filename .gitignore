@@ -3,6 +3,9 @@ config/config.json
 
 # Cached data files
 *.ndjson
+*.db
+*.db-shm
+*.db-wal
 
 # Logs
 logs

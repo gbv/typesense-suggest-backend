@@ -11,6 +11,9 @@ const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializ
 // TODO
 const uri = "http://bartoc.org/en/node/18785"
 
+// SQLite database used to cache concept data loaded for mappings
+import Database from "better-sqlite3"
+
 main()
 async function main() {
   // Init all registries
@@ -89,5 +92,50 @@ async function main() {
     console.log(`... mapping data loaded (${count} mappings, ${index}).`)
   }))
 
-  console.log(conceptData["http://uri.gbv.de/terminology/bk/18.91"])
+  // 5. Prepare SQLite database for mapping concept cache
+  const db = new Database("mapping-concept-cache.db")
+  db.pragma("journal_mode = WAL")
+  db.prepare(`CREATE TABLE IF NOT EXISTS concepts (
+    uri TEXT PRIMARY KEY,
+    label TEXT
+  )`).run()
+
+  // 6. Load concept data for attached mappings (either from cache or API)
+  const incompatibleSchemes = []
+  let cachedCount = 0, failedCount = 0, loadedCount = 0
+  console.log("Loading concept data for mappings...")
+  for (const concept of Object.values(conceptData)) {
+    for (const mappingConcept of concept.mappings || []) {
+      const inScheme = mappingConcept.inScheme[0]
+      const scheme = schemes.find(s => jskos.compare(s, inScheme))
+      if (!scheme?._registry?.getConcepts) {
+        if (!incompatibleSchemes.includes(inScheme.uri)) {
+          incompatibleSchemes.push(inScheme.uri)
+        }
+      } else {
+        // First, try the cache database
+        const row = db.prepare("SELECT * FROM concepts WHERE uri = ?").get(mappingConcept.uri)
+        if (!row || !row.label) {
+          // Load data from API instead
+          try {
+            const [result] = await scheme._registry.getConcepts({ concepts: [mappingConcept] })
+            const label = jskos.prefLabel(result, { fallbackToUri: false })
+            if (!label) throw new Error()
+            db.prepare("INSERT INTO concepts (uri, label) VALUES (?, ?)").run(mappingConcept.uri, label)
+            loadedCount += 1
+            mappingConcept.prefLabel = { de: label }
+          } catch (error) {
+            failedCount += 1
+          }
+        } else {
+          cachedCount += 1
+          mappingConcept.prefLabel = { de: row.label }
+        }
+      }
+    }
+  }
+  console.log(`... loaded ${loadedCount} concepts from API.`)
+  console.log(`... loaded ${cachedCount} concepts from cache.`)
+  console.log(`... failed to load ${failedCount} concepts.`)
+  incompatibleSchemes.length > 0 && console.log(`... ${incompatibleSchemes.length} incompatible vocabularies: ${incompatibleSchemes}`)
 }
