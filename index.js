@@ -86,7 +86,7 @@ async function main() {
       // Attach otherConcepts to all concepts
       concepts.forEach(concept => {
         // We're attaching the concepts in the `mappings` field, but that's okay. 😅
-        concept.mappings = (concept.mappings ?? []).concat(otherConcepts)
+        concept._mappings = (concept._mappings ?? []).concat(otherConcepts)
       })
     }
     console.log(`... mapping data loaded (${count} mappings, ${index}).`)
@@ -105,7 +105,7 @@ async function main() {
   let cachedCount = 0, failedCount = 0, loadedCount = 0
   console.log("Loading concept data for mappings...")
   for (const concept of Object.values(conceptData)) {
-    for (const mappingConcept of concept.mappings || []) {
+    for (const mappingConcept of concept._mappings || []) {
       const inScheme = mappingConcept.inScheme[0]
       const scheme = schemes.find(s => jskos.compare(s, inScheme))
       if (!scheme?._registry?.getConcepts) {
@@ -114,8 +114,8 @@ async function main() {
         }
       } else {
         // First, try the cache database
-        const row = db.prepare("SELECT * FROM concepts WHERE uri = ?").get(mappingConcept.uri)
-        if (!row || !row.label) {
+        const label = db.prepare("SELECT * FROM concepts WHERE uri = ?").get(mappingConcept.uri)?.label
+        if (!label) {
           // Load data from API instead
           try {
             const [result] = await scheme._registry.getConcepts({ concepts: [mappingConcept] })
@@ -129,7 +129,7 @@ async function main() {
           }
         } else {
           cachedCount += 1
-          mappingConcept.prefLabel = { de: row.label }
+          mappingConcept.prefLabel = { de: label }
         }
       }
     }
