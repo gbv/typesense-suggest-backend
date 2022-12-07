@@ -18,7 +18,9 @@ async function main() {
   await Promise.all(mappingRegistries.concat(bartocRegistry).map(registry => registry.init()))
   console.log("... all registries initialized.")
 
-  const scheme = (await bartocRegistry.getSchemes({ params: { uri } }))[0]
+  const schemes = await bartocRegistry.getSchemes({ params: { limit: 3000 }})
+  console.log(`Loaded ${schemes.length} compatible vocabularies.`)
+  const scheme = schemes.find(s => jskos.compare(s, { uri }))
   const notation = jskos.notation(scheme)
 
   // 1. Download all concepts of scheme, if necessary
@@ -80,6 +82,7 @@ async function main() {
       const otherConcepts = jskos.conceptsOfMapping(mapping, otherSide).map(({ uri }) => ({ uri, inScheme: [{ uri: otherScheme.uri }]}))
       // Attach otherConcepts to all concepts
       concepts.forEach(concept => {
+        // We're attaching the concepts in the `mappings` field, but that's okay. 😅
         concept.mappings = (concept.mappings ?? []).concat(otherConcepts)
       })
     }
