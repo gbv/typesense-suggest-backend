@@ -20,5 +20,7 @@
       "uri": "http://coli-conc.gbv.de/registry/coli-conc-mappings",
       "status": "https://coli-conc.gbv.de/api/status"
     }
-  ]
+  ],
+  "verbosity": "log",
+  "port": 3021
 }
