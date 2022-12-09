@@ -153,9 +153,9 @@ async function main() {
   }))
 
   // 5. Prepare SQLite database for mapping concept cache
-  const db = new Database("mapping-concept-cache.db")
+  const db = new Database("data.db")
   db.pragma("journal_mode = WAL")
-  db.prepare(`CREATE TABLE IF NOT EXISTS concepts (
+  db.prepare(`CREATE TABLE IF NOT EXISTS mapping_concepts (
     uri TEXT PRIMARY KEY,
     label TEXT
   )`).run()
@@ -174,14 +174,14 @@ async function main() {
         }
       } else {
         // First, try the cache database
-        const label = db.prepare("SELECT * FROM concepts WHERE uri = ?").get(mappingConcept.uri)?.label
+        const label = db.prepare("SELECT * FROM mapping_concepts WHERE uri = ?").get(mappingConcept.uri)?.label
         if (!label) {
           // Load data from API instead
           try {
             const [result] = await scheme._registry.getConcepts({ concepts: [mappingConcept] })
             const label = jskos.prefLabel(result, { fallbackToUri: false })
             if (!label) throw new Error()
-            db.prepare("INSERT INTO concepts (uri, label) VALUES (?, ?)").run(mappingConcept.uri, label)
+            db.prepare("INSERT INTO mapping_concepts (uri, label) VALUES (?, ?) ON CONFLICT(uri) DO UPDATE SET label=excluded.label").run(mappingConcept.uri, label)
             loadedCount += 1
             mappingConcept.prefLabel = { de: label }
           } catch (error) {
