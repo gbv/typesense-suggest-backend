@@ -8,7 +8,8 @@ import anystream from "json-anystream"
 const bartocRegistry = cdk.initializeRegistry(config.schemeRegistry)
 const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializeRegistry(registry))
 
-// TODO
+// TODO: Only supports BK at the moment
+// const [,, uri] = process.argv
 const uri = "http://bartoc.org/en/node/18785"
 
 import typesense from "./lib/typesense.js"
@@ -153,7 +154,7 @@ async function main() {
   }))
 
   // Prepare SQLite database for mapping concept cache
-  const db = new Database("data.db")
+  const db = new Database(config.database)
   db.pragma("journal_mode = WAL")
   db.prepare(`CREATE TABLE IF NOT EXISTS mapping_concepts (
     uri TEXT PRIMARY KEY,

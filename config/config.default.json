@@ -21,6 +21,7 @@
       "status": "https://coli-conc.gbv.de/api/status"
     }
   ],
+  "database": "./data.db",
   "verbosity": "log",
   "port": 3021
 }
