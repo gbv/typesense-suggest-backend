@@ -81,7 +81,7 @@ async function main() {
   const scheme = schemes.find(s => jskos.compare(s, { uri }))
   const notation = jskos.notation(scheme)
 
-  // 1. Download all concepts of scheme, if necessary
+  // Download all concepts of scheme, if necessary
   const conceptsFile = `./${notation}-concepts.ndjson`
   try {
     // Check if file exists
@@ -96,7 +96,7 @@ async function main() {
     console.log("... download of concept data done.")
   }
 
-  // 2. Download mapping data
+  // Download mapping data
   // Note: We're not using cocoda-sdk here because we want to download the whole file.
   // TODO: Once everything works, we want to redownload the mappings to update the data.
   await Promise.all(mappingRegistries.map(async (registry, index) => {
@@ -114,7 +114,7 @@ async function main() {
     }
   }))
 
-  // 3. Load concept data into memory
+  // Load concept data into memory
   console.log(`Loading concept data from ${conceptsFile} into memory...`)
   const conceptData = {}
   const conceptDataStream = await anystream.make(conceptsFile)
@@ -128,7 +128,7 @@ async function main() {
   }
   console.log(`... concept data loaded (${Object.keys(conceptData).length} concepts).`)
 
-  // 4. Attaching mappings to concept data
+  // Attaching mappings to concept data
   await Promise.all(mappingRegistries.map(async (registry, index) => {
     const mappingFile = `./${notation}-mappings-${index}.ndjson`
     console.log(`Loading mappings data from ${mappingFile} into the concept data (${index})...`)
@@ -152,15 +152,22 @@ async function main() {
     console.log(`... mapping data loaded (${count} mappings, ${index}).`)
   }))
 
-  // 5. Prepare SQLite database for mapping concept cache
+  // Prepare SQLite database for mapping concept cache
   const db = new Database("data.db")
   db.pragma("journal_mode = WAL")
   db.prepare(`CREATE TABLE IF NOT EXISTS mapping_concepts (
     uri TEXT PRIMARY KEY,
     label TEXT
   )`).run()
+  db.prepare(`CREATE TABLE IF NOT EXISTS schemes (
+    key TEXT PRIMARY KEY,
+    json TEXT
+  )`).run()
 
-  // 6. Load concept data for attached mappings (either from cache or API)
+  // Add compatible scheme to database
+  db.prepare("INSERT INTO schemes (key, json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET json=excluded.json").run(notation, JSON.stringify((({ uri, identifier, notation }) => ({ uri, identifier, notation }))(scheme)))
+
+  // Load concept data for attached mappings (either from cache or API)
   const incompatibleSchemes = []
   let cachedCount = 0, failedCount = 0, loadedCount = 0
   console.log("Loading concept data for mappings...")
@@ -199,14 +206,14 @@ async function main() {
   console.log(`... failed to load ${failedCount} concepts.`)
   incompatibleSchemes.length > 0 && console.log(`... ${incompatibleSchemes.length} incompatible vocabularies: ${incompatibleSchemes}`)
 
-  // 7. Prepare Typesense backend
+  // Prepare Typesense backend
   const collection = `${notation}-suggestions`
   if (!(await typesense.exists(collection))) {
     // Create collection
     await typesense.create(collection)
   }
 
-  // 8. Import into Typesense
+  // Import into Typesense
   console.log("Importing data into Typesense backend...")
   let count = 0
   const chunkSize = 5000
