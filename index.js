@@ -83,7 +83,7 @@ async function main() {
   const notation = jskos.notation(scheme)
 
   // Download all concepts of scheme, if necessary
-  const conceptsFile = `./${notation}-concepts.ndjson`
+  const conceptsFile = `${config.cache}/${notation}-concepts.ndjson`
   try {
     // Check if file exists
     await fs.stat(conceptsFile)
@@ -101,7 +101,7 @@ async function main() {
   // Note: We're not using cocoda-sdk here because we want to download the whole file.
   // TODO: Once everything works, we want to redownload the mappings to update the data.
   await Promise.all(mappingRegistries.map(async (registry, index) => {
-    const mappingFile = `./${notation}-mappings-${index}.ndjson`
+    const mappingFile = `${config.cache}/${notation}-mappings-${index}.ndjson`
     try {
       // Check if file exists
       await fs.stat(mappingFile)
@@ -131,7 +131,7 @@ async function main() {
 
   // Attaching mappings to concept data
   await Promise.all(mappingRegistries.map(async (registry, index) => {
-    const mappingFile = `./${notation}-mappings-${index}.ndjson`
+    const mappingFile = `${config.cache}/${notation}-mappings-${index}.ndjson`
     console.log(`Loading mappings data from ${mappingFile} into the concept data (${index})...`)
     const mappingDataStream = await anystream.make(mappingFile)
     let count = 0

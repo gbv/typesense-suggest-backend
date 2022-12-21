@@ -22,6 +22,7 @@
     }
   ],
   "database": "./data.db",
+  "cache": ".",
   "verbosity": "log",
   "port": 3021
 }
