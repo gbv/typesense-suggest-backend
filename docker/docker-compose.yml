@@ -19,3 +19,4 @@ services:
     entrypoint: sh -c "/opt/typesense-server --data-dir /data --api-key=xyz"
     volumes:
       - ./data/typesense:/data
+    restart: unless-stopped
