@@ -8,9 +8,12 @@ import anystream from "json-anystream"
 const bartocRegistry = cdk.initializeRegistry(config.schemeRegistry)
 const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializeRegistry(registry))
 
-// TODO: Only supports BK at the moment
-// const [,, uri] = process.argv
-const uri = "http://bartoc.org/en/node/18785"
+const [,, uri = "http://bartoc.org/en/node/18785", downloadUrl] = process.argv
+
+const vocabularyDownloads = {
+  BK: "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson",
+  RVK: "https://coli-conc.gbv.de/rvk/data/2022_3/rvko_2022_3.ndjson",
+}
 
 import typesense from "./lib/typesense.js"
 
@@ -90,8 +93,12 @@ async function main() {
     console.log(`Using already downloaded concept data for ${notation} in ${conceptsFile}.`)
   } catch (error) {
     // If not, download the data
-    // TODO: Normally, you would use scheme.distributions for detecting the download, but it does not work for BK
-    const download = "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson"
+    // TODO: Normally, you would use scheme.distributions for detecting the download, but it does not seem to be implemented in BARTOC yet.
+    const download = downloadUrl || vocabularyDownloads[notation]
+    if (!download) {
+      console.error(`No download URL available for ${notation}. Currently, download URLs are hardcoded, but can also be given as the second parameter.`)
+      process.exit(1)
+    }
     console.log(`Downloading ${notation} from ${download}...`)
     await downloadFile(download, conceptsFile)
     console.log("... download of concept data done.")
