@@ -176,8 +176,28 @@ async function main() {
   db.prepare("INSERT INTO schemes (key, json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET json=excluded.json").run(notation, JSON.stringify((({ uri, identifier, notation }) => ({ uri, identifier, notation }))(scheme)))
 
   // Load concept data for attached mappings (either from cache or API)
-  const incompatibleSchemes = []
-  let cachedCount = 0, failedCount = 0, loadedCount = 0
+  const incompatibleSchemes = [], conceptsToLoad = {}
+  let totalCount = 0, cachedCount = 0, incompatibleCount = 0, failedCount = 0, loadedCount = 0
+  const loadConcepts = async (scheme) => {
+    const concepts = conceptsToLoad[scheme.uri]
+    try {
+      const results = await scheme._registry.getConcepts({ concepts })
+      for (const mappingConcept of concepts) {
+        const result = results.find(c => jskos.compare(c, mappingConcept))
+        const label = jskos.prefLabel(result, { fallbackToUri: false })
+        if (!label || !result) {
+          failedCount += 1
+          continue
+        }
+        db.prepare("INSERT INTO mapping_concepts (uri, label) VALUES (?, ?) ON CONFLICT(uri) DO UPDATE SET label=excluded.label").run(mappingConcept.uri, label)
+        loadedCount += 1
+        mappingConcept.prefLabel = { de: label }
+      }
+    } catch (error) {
+      failedCount += concepts.length
+    }
+    conceptsToLoad[scheme.uri] = []
+  }
   console.log("Loading concept data for mappings...")
   for (const concept of Object.values(conceptData)) {
     for (const mappingConcept of [].concat(concept._mappings.exactClose, concept._mappings.narrowBroad, concept._mappings.other)) {
@@ -187,31 +207,37 @@ async function main() {
         if (!incompatibleSchemes.includes(inScheme.uri)) {
           incompatibleSchemes.push(inScheme.uri)
         }
+        incompatibleCount += 1
       } else {
         // First, try the cache database
         const label = db.prepare("SELECT * FROM mapping_concepts WHERE uri = ?").get(mappingConcept.uri)?.label
         if (!label) {
-          // Load data from API instead
-          try {
-            const [result] = await scheme._registry.getConcepts({ concepts: [mappingConcept] })
-            const label = jskos.prefLabel(result, { fallbackToUri: false })
-            if (!label) throw new Error()
-            db.prepare("INSERT INTO mapping_concepts (uri, label) VALUES (?, ?) ON CONFLICT(uri) DO UPDATE SET label=excluded.label").run(mappingConcept.uri, label)
-            loadedCount += 1
-            mappingConcept.prefLabel = { de: label }
-          } catch (error) {
-            failedCount += 1
+          if (!conceptsToLoad[scheme.uri]) {
+            conceptsToLoad[scheme.uri] = []
+          }
+          conceptsToLoad[scheme.uri].push(mappingConcept)
+          if (conceptsToLoad[scheme.uri].length >= 20) {
+            await loadConcepts(scheme)
           }
         } else {
           cachedCount += 1
           mappingConcept.prefLabel = { de: label }
         }
       }
+      totalCount += 1
+      if (totalCount % 500 === 0) {
+        console.log(`- ${totalCount} (${loadedCount} loaded, ${cachedCount} cached, ${incompatibleCount} incompatible, ${failedCount} failed)`)
+      }
     }
+  }
+  for (let uri of Object.keys(conceptsToLoad)) {
+    const scheme = schemes.find(s => s.uri === uri)
+    await loadConcepts(scheme)
   }
   console.log(`... loaded ${loadedCount} concepts from API.`)
   console.log(`... loaded ${cachedCount} concepts from cache.`)
   console.log(`... failed to load ${failedCount} concepts.`)
+  console.log(`... ${incompatibleCount} concepts incompatible.`)
   incompatibleSchemes.length > 0 && console.log(`... ${incompatibleSchemes.length} incompatible vocabularies: ${incompatibleSchemes}`)
 
   // Prepare Typesense backend
