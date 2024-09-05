@@ -12,7 +12,7 @@ const [,, uri = "http://bartoc.org/en/node/18785", downloadUrl] = process.argv
 
 const vocabularyDownloads = {
   BK: "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson",
-  RVK: "https://coli-conc.gbv.de/rvk/data/2022_3/rvko_2022_3.ndjson",
+  RVK: "https://coli-conc.gbv.de/rvk/data/2023_4/rvko_2023_4.ndjson",
 }
 
 import typesense from "./lib/typesense.js"
@@ -144,6 +144,13 @@ async function main() {
     let count = 0
     for await (const mapping of mappingDataStream) {
       count += 1
+      if (!mapping) {
+        continue
+      }
+      // Make sure mapping type is given
+      if (!mapping.type?.[0]) {
+        mapping.type = ["http://www.w3.org/2004/02/skos/core#mappingRelation"]
+      }
       const side = jskos.compare(mapping.fromScheme, scheme) ? "from" : "to"
       const otherSide = side === "from" ? "to" : "from"
       const otherScheme = mapping[`${otherSide}Scheme`]
