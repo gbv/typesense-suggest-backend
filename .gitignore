@@ -8,7 +8,7 @@ config/config.json
 *.db-wal
 
 # Docker data files
-docker/data
+.docker/data
 
 # Logs
 logs
