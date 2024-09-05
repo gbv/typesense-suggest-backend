@@ -15,39 +15,6 @@ const vocabularyDownloads = {
   RVK: "https://coli-conc.gbv.de/rvk/data/2022_3/rvko_2022_3.ndjson",
 }
 
-// TODO: Can we finally get this into BARTOC?
-const gndRegistry = cdk.initializeRegistry({
-  provider: "ConceptApi",
-  uri: "http://coli-conc.gbv.de/registry/gnd-concepts",
-  data: "https://coli-conc.gbv.de/services/gnd.php",
-  suggest: "https://ws.gbv.de/suggest/gnd/?searchterm={searchTerms}",
-  types: "https://ws.gbv.de/suggest/gnd/types",
-  schemes: [
-    {
-      uri: "http://bartoc.org/en/node/430",
-      concepts: [
-        null,
-      ],
-      topConcepts: [],
-    },
-  ],
-  notation: [
-    "G",
-  ],
-  prefLabel: {
-    de: "Gemeinsame Normdatei",
-    en: "Integrated Authority File",
-  },
-  definition: {
-    en: [
-      "Access to a copy of GND at VZG",
-    ],
-    de: [
-      "Zugriff auf eine GND-Kopie an der VZG",
-    ],
-  },
-})
-
 import typesense from "./lib/typesense.js"
 
 function isCombinedConcept(concept) {
@@ -110,18 +77,13 @@ main()
 async function main() {
   // Init all registries
   console.log("Initialize all registries...")
-  await Promise.all(mappingRegistries.concat(bartocRegistry, gndRegistry).map(registry => registry.init()))
+  await Promise.all(mappingRegistries.concat(bartocRegistry).map(registry => registry.init()))
   console.log("... all registries initialized.")
 
   const schemes = await bartocRegistry.getSchemes({ params: { limit: 3000 }})
   console.log(`Loaded ${schemes.length} compatible vocabularies.`)
   const scheme = schemes.find(s => jskos.compare(s, { uri }))
   const notation = jskos.notation(scheme)
-
-  // !
-  // Set custom registry for GND
-  const gnd = schemes.find(s => jskos.compare(s, gndRegistry.schemes[0]))
-  gnd._registry = gndRegistry
 
   // Download all concepts of scheme, if necessary
   const conceptsFile = `${config.cache}/${notation}-concepts.ndjson`
