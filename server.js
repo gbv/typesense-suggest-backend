@@ -44,11 +44,14 @@ app.get(
       return []
     }
     // Get results from Typesense backend
-    const collection = `${scheme._key}-suggestions`
+    const collection = `${jskos.notation(scheme)}-suggestions`
     const limit = parseInt(req.query.limit) || 100
     const offset = parseInt(req.query.offset) || 0
     const per_page = limit
     const page = Math.floor(offset / limit + 1)
+    if (!await typesense.exists(collection)) {
+      return []
+    }
     const result = await typesense.search(collection, req.query.search, ["identifier", "prefLabel", "altLabel", "mappingLabelsExactClose", "mappingLabelsNarrowBroad", "notes"], { per_page, page })
     // Return concept data only
     return result.hits.map(hit => {
