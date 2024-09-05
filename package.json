@@ -10,7 +10,11 @@
     "fix": "npm run lint -- --fix",
     "lint-staged": "lint-staged",
     "setup": "node setup.js",
-    "start": "nodemon server.js"
+    "start": "nodemon server.js",
+    "release": "git checkout main && git pull && npm version $SEMVER && git push --follow-tags",
+    "release:patch": "SEMVER=patch npm run release",
+    "release:minor": "SEMVER=minor npm run release",
+    "release:major": "SEMVER=major npm run release"
   },
   "lint-staged": {
     "**/*.{js,vue}": [
