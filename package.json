@@ -9,7 +9,7 @@
     "lint": "eslint --ignore-path .gitignore --ext .js,.cjs .",
     "fix": "npm run lint -- --fix",
     "lint-staged": "lint-staged",
-    "setup": "node index.js",
+    "setup": "node setup.js",
     "start": "nodemon server.js"
   },
   "lint-staged": {
