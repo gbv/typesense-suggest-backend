@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   typesense:
-    image: typesense/typesense:0.23.1
+    image: typesense/typesense:27
     entrypoint: sh -c "/opt/typesense-server --data-dir /data --api-key=xyz"
     volumes:
       - ./data/typesense:/data
