@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   typesense-suggest:
     build:
@@ -15,7 +13,7 @@ services:
     restart: unless-stopped
 
   typesense:
-    image: typesense/typesense:27
+    image: typesense/typesense:27.0
     entrypoint: sh -c "/opt/typesense-server --data-dir /data --api-key=xyz"
     volumes:
       - ./data/typesense:/data
