@@ -3,7 +3,7 @@ import jskos from "jskos-tools"
 import { cdk } from "cocoda-sdk"
 import fs from "fs/promises"
 import { downloadFile } from "./lib/utils.js"
-import anystream from "json-anystream"
+import * as anystream from "json-anystream"
 
 const bartocRegistry = cdk.initializeRegistry(config.schemeRegistry)
 const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializeRegistry(registry))
