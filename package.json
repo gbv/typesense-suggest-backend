@@ -11,7 +11,8 @@
     "lint-staged": "lint-staged",
     "setup": "node setup.js",
     "start": "nodemon server.js",
-    "release": "git checkout main && git pull && npm version $SEMVER && git push --follow-tags",
+    "yesno": "node -e \"const yesno = require('yesno'); yesno({ question: 'Are you sure you want to continue?' }).then(ok => process.exit(ok ? 0 : 1));\"",
+    "release": "test $(git rev-parse --abbrev-ref HEAD) = main && git pull && (npm version $SEMVER && npm run --silent yesno && git push --follow-tags) || (git tag -d $(git describe --tags) && git reset --hard HEAD~1)",
     "release:patch": "SEMVER=patch npm run release",
     "release:minor": "SEMVER=minor npm run release",
     "release:major": "SEMVER=major npm run release"
@@ -48,6 +49,7 @@
     "eslint": "~9.12",
     "eslint-config-gbv": "~2.2",
     "lint-staged": "^15.2.10",
-    "pre-commit": "^1.2.2"
+    "pre-commit": "^1.2.2",
+    "yesno": "^0.4.0"
   }
 }
