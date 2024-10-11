@@ -84,3 +84,6 @@ Wikidata mappings could be included, but we need to implement the `download` par
   "status": "https://coli-conc.gbv.de/services/wikidata/status"
 }
 ```
+
+## License
+MIT © 2024 Verbundzentrale des GBV (VZG)
