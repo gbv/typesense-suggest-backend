@@ -8,11 +8,22 @@ import * as anystream from "json-anystream"
 const bartocRegistry = cdk.initializeRegistry(config.schemeRegistry)
 const mappingRegistries = config.mappingRegistries.map(registry => cdk.initializeRegistry(registry))
 
-const [,, uri = "http://bartoc.org/en/node/18785", downloadUrl] = process.argv
+const [,, uri, downloadUrl] = process.argv
 
+// Certain vocabulary downloads are hardcoded
 const vocabularyDownloads = {
-  BK: "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson",
-  RVK: "https://coli-conc.gbv.de/rvk/data/2023_4/rvko_2023_4.ndjson",
+  "http://bartoc.org/en/node/18785": "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson",
+}
+function getDownloadUrl(scheme) {
+  if (vocabularyDownloads[scheme.uri]) {
+    return vocabularyDownloads[scheme.uri]
+  }
+  // Try to find distribution (only those hosted on the main coli-conc API for now)
+  const distribution = scheme.distributions.find(d => d.format === "http://format.gbv.de/jskos" && d.mimetype === "application/x-ndjson; charset=utf-8" && d.download?.startsWith("https://coli-conc.gbv.de/api/"))
+  if (distribution) {
+    return distribution.download
+  }
+  return null
 }
 
 import typesense from "./lib/typesense.js"
@@ -94,9 +105,9 @@ async function main() {
   } catch (error) {
     // If not, download the data
     // TODO: Normally, you would use scheme.distributions for detecting the download, but it does not seem to be implemented in BARTOC yet.
-    const download = downloadUrl || vocabularyDownloads[notation]
+    const download = downloadUrl || getDownloadUrl(scheme)
     if (!download) {
-      console.error(`No download URL available for ${notation}. Currently, download URLs are hardcoded, but can also be given as the second parameter.`)
+      console.error(`No download URL available for ${notation}. Download URLs for ndjson data are retrieved from BARTOC, but can also be given as the second parameter.`)
       process.exit(1)
     }
     console.log(`Downloading ${notation} from ${download}...`)
