@@ -58,7 +58,7 @@ app.get(
       return []
     }
     // Get results from Typesense backend
-    const collection = `${jskos.notation(scheme)}-suggestions`
+    const collection = `${scheme._key}-suggestions`
     const limit = parseInt(req.query.limit) || 100
     const offset = parseInt(req.query.offset) || 0
     const per_page = limit
