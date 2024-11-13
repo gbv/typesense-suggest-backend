@@ -1,6 +1,6 @@
 {
   "name": "typesense-suggest-backend",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Experimental backend for mapping suggestions using Typesense, to be used in Cocoda Mapping Tool.",
   "main": "server.js",
   "type": "module",
