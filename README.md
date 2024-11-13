@@ -17,14 +17,20 @@ npm ci
 # Copy and adjust default config
 cp config/config.default.json config/config.json
 editor config/config.json
-# Run setup for each vocabulary
+# Run setup (always use BARTOC URIs)
 # Note: The first run will take a long time as a lot of data will have to be loaded from APIs. However, most data is cached, so subsequent runs will be much faster.
+
+# Option 1: Setup each vocabulary separately
 # BK
 npm run setup "http://bartoc.org/en/node/18785"
 # RVK
 npm run setup "http://bartoc.org/en/node/533"
 # DDC
 npm run setup "http://bartoc.org/en/node/241"
+
+# Option 2: Provide multiple BARTOC URIs in the `schemes` field in `config/config.json` and run setup without parameters:
+npm run setup
+
 # Start the server (default port is 3021)
 npm run start
 ```

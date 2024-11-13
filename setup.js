@@ -14,7 +14,13 @@ const [,, uri, downloadUrl] = process.argv
 const vocabularyDownloads = {
   "http://bartoc.org/en/node/18785": "https://api.dante.gbv.de/export/download/bk/default/bk__default.jskos.ndjson",
 }
+if (uri && downloadUrl) {
+  vocabularyDownloads[uri] = downloadUrl
+}
 function getDownloadUrl(scheme) {
+  if (!scheme) {
+    return null
+  }
   if (vocabularyDownloads[scheme.uri]) {
     return vocabularyDownloads[scheme.uri]
   }
@@ -84,8 +90,20 @@ const mappingTypeMap = {
 // SQLite database used to cache concept data loaded for mappings
 import Database from "better-sqlite3"
 
-main()
-async function main() {
+if (uri) {
+  main(uri)
+} else {
+  if (!config.schemes?.length) {
+    console.error("Neither URI (as param) nor `config.schemes` are given, nothing to import.")
+    process.exit(1)
+  }
+  ;(async () => {
+    for (const uri of config.schemes) {
+      await main(uri)
+    }
+  })()
+}
+async function main(uri) {
   // Init all registries
   console.log("Initialize all registries...")
   await Promise.all(mappingRegistries.concat(bartocRegistry).map(registry => registry.init()))
@@ -95,6 +113,13 @@ async function main() {
   console.log(`Loaded ${schemes.length} compatible vocabularies.`)
   const scheme = schemes.find(s => jskos.compare(s, { uri }))
   const notation = jskos.notation(scheme)
+  console.log()
+  if (!notation) {
+    console.error(`Vocabulary with URI ${uri} not compatible, not importing.`)
+    console.error()
+    return
+  }
+  console.log(`##### Importing ${notation} #####`)
 
   // Download all concepts of scheme, if necessary
   const conceptsFile = `${config.cache}/${notation}-concepts.ndjson`
@@ -104,8 +129,7 @@ async function main() {
     console.log(`Using already downloaded concept data for ${notation} in ${conceptsFile}.`)
   } catch (error) {
     // If not, download the data
-    // TODO: Normally, you would use scheme.distributions for detecting the download, but it does not seem to be implemented in BARTOC yet.
-    const download = downloadUrl || getDownloadUrl(scheme)
+    const download = getDownloadUrl(scheme)
     if (!download) {
       console.error(`No download URL available for ${notation}. Download URLs for ndjson data are retrieved from BARTOC, but can also be given as the second parameter.`)
       process.exit(1)
@@ -276,4 +300,5 @@ async function main() {
     console.log(`... ${count} documents imported.`)
   }
   console.log("... import into Typesense complete.")
+  console.log()
 }

@@ -21,6 +21,7 @@
       "status": "https://coli-conc.gbv.de/api/status"
     }
   ],
+  "schemes": [],
   "database": "./data.db",
   "cache": ".",
   "verbosity": "log",
