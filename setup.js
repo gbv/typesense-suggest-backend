@@ -63,9 +63,9 @@ function mapConcept(concept) {
   if (!isCombinedConcept(concept)) {
     document.prefLabel = Object.values(concept.prefLabel)
     document.altLabel = [].concat(...Object.values(concept.altLabel || {}))
-    document.mappingLabelsExactClose = concept._mappings.exactClose.map(mapping => mapping.prefLabel?.de).filter(Boolean)
-    document.mappingLabelsNarrowBroad = concept._mappings.narrowBroad.map(mapping => mapping.prefLabel?.de).filter(Boolean)
-    document.mappingLabelsOther = concept._mappings.other.map(mapping => mapping.prefLabel?.de).filter(Boolean)
+    document.mappingLabelsExactClose = concept._mappings.exactClose.map(mapping => mapping.label).filter(Boolean)
+    document.mappingLabelsNarrowBroad = concept._mappings.narrowBroad.map(mapping => mapping.label).filter(Boolean)
+    document.mappingLabelsOther = concept._mappings.other.map(mapping => mapping.label).filter(Boolean)
     document.notes = [].concat(...Object.values(concept.scopeNote || {}), ...Object.values(concept.editorialNote || {}))
   }
   return document
@@ -202,14 +202,14 @@ async function main() {
       const results = await scheme._registry.getConcepts({ concepts })
       for (const mappingConcept of concepts) {
         const result = results.find(c => jskos.compare(c, mappingConcept))
-        const label = jskos.prefLabel(result, { fallbackToUri: false })
-        if (!label || !result) {
+        const labels = Object.values(result?.prefLabel || {}).join(" ")
+        if (!result || !labels.length) {
           failedCount += 1
           continue
         }
-        db.prepare("INSERT INTO mapping_concepts (uri, label) VALUES (?, ?) ON CONFLICT(uri) DO UPDATE SET label=excluded.label").run(mappingConcept.uri, label)
+        db.prepare("INSERT INTO mapping_concepts (uri, label) VALUES (?, ?) ON CONFLICT(uri) DO UPDATE SET label=excluded.label").run(mappingConcept.uri, labels)
         loadedCount += 1
-        mappingConcept.prefLabel = { de: label }
+        mappingConcept.label = labels
       }
     } catch (error) {
       failedCount += concepts.length
@@ -228,8 +228,8 @@ async function main() {
         incompatibleCount += 1
       } else {
         // First, try the cache database
-        const label = db.prepare("SELECT * FROM mapping_concepts WHERE uri = ?").get(mappingConcept.uri)?.label
-        if (!label) {
+        const labels = db.prepare("SELECT * FROM mapping_concepts WHERE uri = ?").get(mappingConcept.uri)?.label
+        if (!labels?.length) {
           if (!conceptsToLoad[scheme.uri]) {
             conceptsToLoad[scheme.uri] = []
           }
@@ -239,7 +239,7 @@ async function main() {
           }
         } else {
           cachedCount += 1
-          mappingConcept.prefLabel = { de: label }
+          mappingConcept.label = labels
         }
       }
       totalCount += 1
