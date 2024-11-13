@@ -27,7 +27,21 @@ app.use((req, res, next) => {
 // Load compatible schemes from database
 import Database from "better-sqlite3"
 const db = new Database(config.database)
-const schemes = db.prepare("SELECT * FROM schemes").all().map(s => Object.assign({ _key: s.key }, JSON.parse(s.json)))
+let schemes
+function updateSchemes() {
+  const newSchemes = db.prepare("SELECT * FROM schemes").all().map(s => Object.assign({ _key: s.key }, JSON.parse(s.json)))
+  if (schemes?.length) {
+    // Detect and print new detected schemes to console
+    for (const scheme of newSchemes) {
+      if (!schemes?.find(s => jskos.compare(s, scheme))) {
+        console.log(`Detected new compatible scheme: ${jskos.notation(scheme)} (${scheme.uri})`)
+      }
+    }
+  }
+  schemes = newSchemes
+}
+updateSchemes()
+setInterval(updateSchemes, 10000)
 
 import typesense from "./lib/typesense.js"
 import jskos from "jskos-tools"
