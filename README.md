@@ -1,5 +1,5 @@
 # typesense-suggest-backend
-Experimental backend for mapping suggestions using Typesense, to be used in Cocoda Mapping Tool.
+Backend for mapping suggestions using Typesense, to be used in Cocoda Mapping Tool.
 
 Currently not yet stable.
 
@@ -17,12 +17,14 @@ npm ci
 # Copy and adjust default config
 cp config/config.default.json config/config.json
 editor config/config.json
-# Run setup for each vocabulary (currently, only RVK and BK are supported)
+# Run setup for each vocabulary
 # Note: The first run will take a long time as a lot of data will have to be loaded from APIs. However, most data is cached, so subsequent runs will be much faster.
 # BK
 npm run setup "http://bartoc.org/en/node/18785"
-# BK
+# RVK
 npm run setup "http://bartoc.org/en/node/533"
+# DDC
+npm run setup "http://bartoc.org/en/node/241"
 # Start the server (default port is 3021)
 npm run start
 ```
@@ -31,7 +33,7 @@ npm run start
 
 The service offers a [jskos-server](https://github.com/gbv/jskos-server) compatible `/search` endpoint. Currently supported query parameters: `voc` (vocabulary URI, required), `search` (search string, required), `limit` (optional), `offset` (optional)
 
-In Cocoda, it can be included as a suggestion registry like this (example for RVK and BK):
+In Cocoda, it can be included as a suggestion registry like this (example for RVK and BK in a local instance):
 
 ```json
 {
