@@ -180,7 +180,7 @@ async function main() {
   )`).run()
 
   // Add compatible scheme to database
-  db.prepare("INSERT INTO schemes (key, json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET json=excluded.json").run(notation, JSON.stringify((({ uri, identifier, notation }) => ({ uri, identifier, notation }))(scheme)))
+  db.prepare("INSERT INTO schemes (key, json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET json=excluded.json").run(notation, JSON.stringify((({ uri, identifier }) => ({ uri, identifier, notation: [notation] }))(scheme)))
 
   // Load concept data for attached mappings (either from cache or API)
   const incompatibleSchemes = [], conceptsToLoad = {}
